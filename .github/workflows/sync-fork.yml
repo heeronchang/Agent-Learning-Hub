@@ -1,0 +1,39 @@
+name: Sync Fork with Upstream
+
+on:
+  schedule:
+    # 每天 UTC 时间 00:00 运行（北京时间早上 8 点）
+    - cron: '0 0 * * *'
+  workflow_dispatch:   # 允许手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # 需要有 push 权限
+    steps:
+      - name: Checkout fork repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 获取完整历史，避免 shallow 问题
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/datawhalechina/Agent-Learning-Hub.git
+
+      - name: Fetch upstream changes
+        run: git fetch upstream
+
+      - name: Set default branch name
+        id: branch
+        run: |
+          DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)
+          echo "branch=$DEFAULT_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Merge upstream into default branch
+        run: |
+          git checkout ${{ steps.branch.outputs.branch }}
+          git merge upstream/${{ steps.branch.outputs.branch }} --allow-unrelated-histories --no-edit
+
+      - name: Push merged changes to origin
+        run: git push origin ${{ steps.branch.outputs.branch }}
